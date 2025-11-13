@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: api-transactions-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-dbname}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - api-network
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api-transactions
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-dbname}
+      HOST: 0.0.0.0
+      PORT: 3000
+      DEBUG: ${DEBUG:-False}
+      APP_NAME: ${APP_NAME:-Transactions API}
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+      API_KEY: ${API_KEY}
+    ports:
+      - "${PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - api-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  api-network:
+    driver: bridge
+
