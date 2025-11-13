@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     HOST: str = "0.0.0.0"
     PORT: int = 3000
+    API_KEY: str = Field(default="", description="API Key for authentication")
     
     class Config:
         env_file = str(Path(__file__).parent.parent.parent / ".env")

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Enum, Boolean
+from sqlalchemy import Column, Integer, String, Float, Enum
 from src.common.entities.base import BaseEntity
 from src.common.enums.transaction_status import TransactionStatus
 
@@ -15,7 +15,6 @@ class TransactionEntity(BaseEntity):
     currency = Column(String(3), nullable=False)
     status = Column(Enum(TransactionStatus), nullable=False)
     error_message = Column(String(255), nullable=True)
-    is_deleted = Column(Boolean, nullable=False, default=False)
 
     
     def __repr__(self):
