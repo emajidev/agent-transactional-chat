@@ -1,11 +1,12 @@
 from sqlalchemy import Column, DateTime, func
 from src.configuration.config import Base
+from src.common.mixins.soft_delete_mixin import SoftDeleteMixin
 
-class BaseEntity(Base):
+class BaseEntity(Base, SoftDeleteMixin):
     __abstract__ = True
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     def __repr__(self):
-        return f"<{self.__class__.__name__}(id={self.id}, created_at={self.created_at}, updated_at={self.updated_at})>"
+        return f"<{self.__class__.__name__}(id={self.id}, created_at={self.created_at}, updated_at={self.updated_at}, deleted_at={self.deleted_at})>"

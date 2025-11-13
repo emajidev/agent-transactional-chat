@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.configuration.config import settings
+from src.common.mixins.soft_delete_mixin import setup_soft_delete_listeners
 from src.modules.transactions.controller import router 
 
 # Metadata configuration for OpenAPI/Swagger
@@ -42,6 +43,10 @@ logger = logging.getLogger("uvicorn.error")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Inicializar listeners de SQLAlchemy para soft delete
+    setup_soft_delete_listeners()
+    logger.info("Soft delete de SQLAlchemy configurado correctamente")
+    
     docs_path = app.docs_url or "/docs"
     swagger_url = f"http://{settings.HOST}:{settings.PORT}{docs_path}"
     logger.info("Swagger UI disponible en %s", swagger_url)
