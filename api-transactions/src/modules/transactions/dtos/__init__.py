@@ -1,4 +1,4 @@
-from modules.transactions.dtos.transaction import (
+from src.modules.transactions.dtos.transaction import (
     TransactionBase,
     TransactionCreate,
     TransactionUpdate,
