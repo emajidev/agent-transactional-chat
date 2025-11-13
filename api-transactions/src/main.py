@@ -1,3 +1,6 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.configuration.config import settings
@@ -34,6 +37,17 @@ tags_metadata = [
 ]
 
 # Crear instancia de FastAPI
+logger = logging.getLogger("uvicorn.error")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    docs_path = app.docs_url or "/docs"
+    swagger_url = f"http://{settings.HOST}:{settings.PORT}{docs_path}"
+    logger.info("Swagger UI disponible en %s", swagger_url)
+    yield
+
+
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
@@ -46,6 +60,7 @@ app = FastAPI(
     license_info={
         "name": "MIT",
     },
+    lifespan=lifespan,
 )
 
 # Cords conf middleware
@@ -84,7 +99,7 @@ if __name__ == "__main__":
     import uvicorn
     
     uvicorn.run(
-        "main:app",
+        "src.main:app",
         host=settings.HOST,
         port=settings.PORT,
         reload=settings.DEBUG,

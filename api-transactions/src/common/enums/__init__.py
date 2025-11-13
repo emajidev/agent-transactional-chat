@@ -1,4 +1,4 @@
-from src.common.enums.transaction_type import TransactionType
+from src.common.enums.transaction_status import TransactionStatus
 
-__all__ = ["TransactionType"]
+__all__ = ["TransactionStatus"]
 

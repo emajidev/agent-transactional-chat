@@ -1,0 +1,7 @@
+{
+    "python.linting.enabled": true,
+    "python.linting.ruffEnabled": true,
+    "python.linting.lintOnSave": true,
+    "python.linting.enabledWithoutWorkspace": true,
+    "python.formatting.provider": "black"
+}

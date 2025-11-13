@@ -1,6 +1,6 @@
-from typing import List, Optional
+from typing import Optional, Dict, Any, List
 from src.common.repositories import BaseRepository
-from src.modules.transactions.entities.transaction import Transaction
+from src.modules.transactions.entities import Transaction
 from src.modules.transactions.dtos.transaction import TransactionCreate, TransactionUpdate
 
 
@@ -9,7 +9,24 @@ class TransactionRepository(BaseRepository[Transaction]):
     model = Transaction
     
     def get_by_id(self, transaction_id: int) -> Optional[Transaction]:
-        return self.session.query(Transaction).filter(Transaction.id == transaction_id).first()
+        return (
+            self.session.query(Transaction)
+            .filter(
+                Transaction.id == transaction_id,
+                Transaction.is_deleted.is_(False),
+            )
+            .first()
+        )
+
+    def get_all(
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> List[Transaction]:
+        filters = dict(filters or {})
+        filters.setdefault("is_deleted", False)
+        return super().get_all(skip=skip, limit=limit, filters=filters)
 
     def create(self, transaction_data: TransactionCreate) -> Transaction:
         db_transaction = Transaction(**transaction_data.model_dump())
@@ -28,6 +45,7 @@ class TransactionRepository(BaseRepository[Transaction]):
         if not db_transaction:
             return False
         
-        super().delete(db_transaction)
+        db_transaction.is_deleted = True
+        self.session.flush()
         return True
 
