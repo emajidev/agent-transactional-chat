@@ -66,3 +66,5 @@ def db_circuit_breaker(
     
     return circuit_breaker(_db_circuit_breaker, fallback_func)
 
+
+

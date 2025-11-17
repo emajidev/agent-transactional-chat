@@ -3,8 +3,7 @@ Módulo de retry para operaciones que pueden fallar temporalmente.
 Usa tenacity para implementar estrategias de reintento con backoff exponencial.
 """
 import logging
-from functools import wraps
-from typing import Callable, TypeVar, Any
+from typing import Callable, TypeVar
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -120,4 +119,6 @@ def retry_on_failure(
         retry_exceptions=exceptions,
     )(func)
     return decorated()
+
+
 

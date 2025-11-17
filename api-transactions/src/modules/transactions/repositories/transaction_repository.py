@@ -3,6 +3,7 @@ from src.common.repositories import BaseRepository
 from src.common.resilience import retry_db_operation
 from src.modules.transactions.entities import Transaction
 from src.modules.transactions.dtos.transaction import TransactionCreate, TransactionUpdate
+from src.common.enums.transaction_status import TransactionStatus
 
 
 class TransactionRepository(BaseRepository[Transaction]):
@@ -29,7 +30,17 @@ class TransactionRepository(BaseRepository[Transaction]):
         return super().get_all(skip=skip, limit=limit, filters=filters)
 
     def create(self, transaction_data: TransactionCreate) -> Transaction:
-        db_transaction = Transaction(**transaction_data.model_dump())
+        # Convertir el enum a su valor antes de crear la entidad
+        # Usar model_dump con mode='python' para obtener valores nativos
+        data = transaction_data.model_dump(mode='python')
+        # Asegurar que el status sea el valor del enum (string)
+        if 'status' in data:
+            if isinstance(data['status'], TransactionStatus):
+                data['status'] = data['status'].value
+            elif isinstance(data['status'], str):
+                # Si ya es string, verificar que sea válido
+                data['status'] = data['status'].lower()
+        db_transaction = Transaction(**data)
         return super().create(db_transaction)
     
     def update(self, transaction_id: int, transaction_data: TransactionUpdate) -> Optional[Transaction]:
@@ -37,7 +48,13 @@ class TransactionRepository(BaseRepository[Transaction]):
         if not db_transaction:
             return None
         
-        update_data = transaction_data.model_dump(exclude_unset=True)
+        # Convertir el enum a su valor antes de actualizar
+        update_data = transaction_data.model_dump(exclude_unset=True, mode='python')
+        if 'status' in update_data:
+            if isinstance(update_data['status'], TransactionStatus):
+                update_data['status'] = update_data['status'].value
+            elif isinstance(update_data['status'], str):
+                update_data['status'] = update_data['status'].lower()
         return super().update(db_transaction, update_data)
     
     def delete(self, transaction_id: int) -> bool:

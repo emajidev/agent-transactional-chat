@@ -23,7 +23,7 @@ def main():
     print(f"\nPython version: {sys.version}")
     print(f"Python executable: {sys.executable}")
     print(f"Virtual env: {os.environ.get('VIRTUAL_ENV', 'Not detected')}")
-    print(f"\nPython path:")
+    print("\nPython path:")
     for path in sys.path:
         if 'site-packages' in path:
             print(f"  📦 {path}")

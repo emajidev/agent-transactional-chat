@@ -19,15 +19,28 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Crear el enum TransactionStatus
+    # Crear el enum TransactionStatus si no existe usando SQL directo
+    connection = op.get_bind()
+    # Usar DO block para crear el enum solo si no existe
+    # Nota: No hacemos commit aquí, Alembic maneja las transacciones
+    connection.execute(
+        sa.text("""
+            DO $$ BEGIN
+                CREATE TYPE transactionstatus AS ENUM ('pending', 'completed', 'failed');
+            EXCEPTION
+                WHEN duplicate_object THEN null;
+            END $$;
+        """)
+    )
+    
+    # Definir el enum para uso en la tabla (sin create_type)
     transaction_status_enum = postgresql.ENUM(
         'pending',
         'completed',
         'failed',
         name='transactionstatus',
-        create_type=True
+        create_type=False
     )
-    transaction_status_enum.create(op.get_bind(), checkfirst=True)
     
     # Crear la tabla transactions
     op.create_table(
