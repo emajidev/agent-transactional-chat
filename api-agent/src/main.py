@@ -8,6 +8,7 @@ from src.common.mixins.soft_delete_mixin import setup_soft_delete_listeners
 from src.configuration.config import settings
 from src.modules.auth.controller import router as auth_router
 from src.modules.conversations.controller import router as conversations_router
+from src.modules.conversations.services.response_consumer_service import ResponseConsumerService
 
 # Metadata configuration for OpenAPI/Swagger
 description = """
@@ -59,10 +60,26 @@ async def lifespan(app: FastAPI):
     setup_soft_delete_listeners()
     logger.info("Soft delete de SQLAlchemy configurado correctamente")
 
+    # Iniciar consumidor de respuestas de RabbitMQ
+    response_consumer = ResponseConsumerService()
+    try:
+        response_consumer.start()
+        logger.info("Consumidor de respuestas de RabbitMQ iniciado")
+    except Exception as e:
+        logger.error(f"Error al iniciar consumidor de respuestas: {str(e)}", exc_info=True)
+
     docs_path = app.docs_url or "/docs"
     swagger_url = f"http://{settings.HOST}:{settings.PORT}{docs_path}"
     logger.info("Swagger UI disponible en %s", swagger_url)
+    
     yield
+    
+    # Detener consumidor al cerrar la aplicación
+    try:
+        response_consumer.stop()
+        logger.info("Consumidor de respuestas de RabbitMQ detenido")
+    except Exception as e:
+        logger.error(f"Error al detener consumidor de respuestas: {str(e)}")
 
 
 app = FastAPI(

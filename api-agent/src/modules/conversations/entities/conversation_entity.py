@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String
 from sqlalchemy.dialects.postgresql import ENUM as PG_ENUM
 
 from src.common.entities.base import BaseEntity
@@ -22,6 +22,14 @@ class ConversationEntity(BaseEntity):
         ),
         nullable=False,
     )
+    # Campos para guardar el estado de la conversación
+    # Estos campos pueden no existir en la tabla si la migración no se ha ejecutado
+    # Por eso no tienen valores por defecto a nivel de Python
+    recipient_phone = Column(String(20), nullable=True)
+    amount = Column(Float, nullable=True)
+    currency = Column(String(10), nullable=True)  # Sin default para evitar que SQLAlchemy lo inserte si no existe
+    confirmation_pending = Column(Boolean, nullable=True)  # Sin default para evitar que SQLAlchemy lo inserte si no existe
+    transaction_id = Column(String(255), nullable=True)
 
     def __repr__(self):
         return (

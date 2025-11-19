@@ -9,3 +9,5 @@ class AgentState(TypedDict):
     confirmation_pending: bool
     transaction_id: str | None
     error: str | None
+    user_id: str | None
+    conversation_id: int | None

@@ -9,11 +9,21 @@ interface Message {
   timestamp: Date;
 }
 
+interface ConversationState {
+  recipient_phone?: string | null;
+  amount?: number | null;
+  currency?: string;
+  confirmation_pending?: boolean;
+  transaction_id?: string | null;
+  messages?: Array<{ role: string; content: string }>;
+}
+
 export const Chat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<number | null>(null);
+  const [conversationState, setConversationState] = useState<ConversationState | null>(null);
   const [error, setError] = useState('');
   const { user, logout } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -27,9 +37,47 @@ export const Chat: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Cargar estado desde localStorage al montar el componente
   useEffect(() => {
-    // Mensaje de bienvenida inicial
-    if (messages.length === 0) {
+    const savedConversationId = localStorage.getItem('conversationId');
+    const savedState = localStorage.getItem('conversationState');
+    const savedMessages = localStorage.getItem('messages');
+
+    if (savedConversationId) {
+      setConversationId(parseInt(savedConversationId, 10));
+    }
+
+    if (savedState) {
+      try {
+        setConversationState(JSON.parse(savedState));
+      } catch (e) {
+        console.error('Error al cargar estado desde localStorage:', e);
+      }
+    }
+
+    if (savedMessages) {
+      try {
+        const parsedMessages = JSON.parse(savedMessages);
+        // Convertir timestamps de string a Date
+        const messagesWithDates = parsedMessages.map((msg: Message) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp),
+        }));
+        setMessages(messagesWithDates);
+      } catch (e) {
+        console.error('Error al cargar mensajes desde localStorage:', e);
+        // Si hay error, mostrar mensaje de bienvenida
+        setMessages([
+          {
+            id: '1',
+            text: '¡Hola! Soy tu asistente virtual. Puedo ayudarte a realizar transferencias de dinero. ¿En qué puedo ayudarte?',
+            isUser: false,
+            timestamp: new Date(),
+          },
+        ]);
+      }
+    } else {
+      // Mensaje de bienvenida inicial
       setMessages([
         {
           id: '1',
@@ -52,7 +100,12 @@ export const Chat: React.FC = () => {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages((prev) => {
+      const newMessages = [...prev, userMessage];
+      // Guardar mensajes en localStorage
+      localStorage.setItem('messages', JSON.stringify(newMessages));
+      return newMessages;
+    });
     setInputMessage('');
     setLoading(true);
     setError('');
@@ -62,11 +115,19 @@ export const Chat: React.FC = () => {
         message: inputMessage,
         conversation_id: conversationId,
       };
-
+      console.log('[CHAT] Enviando mensaje:', inputMessage);
       const response = await apiService.sendChatMessage(request);
-      
+
       if (!conversationId) {
         setConversationId(response.conversation_id);
+        localStorage.setItem('conversationId', response.conversation_id.toString());
+      }
+
+      // Guardar el estado de la conversación
+      if (response.state) {
+        setConversationState(response.state);
+        localStorage.setItem('conversationState', JSON.stringify(response.state));
+        console.log('[CHAT] Estado actualizado:', response.state);
       }
 
       const botMessage: Message = {
@@ -76,7 +137,12 @@ export const Chat: React.FC = () => {
         timestamp: new Date(),
       };
 
-      setMessages((prev) => [...prev, botMessage]);
+      setMessages((prev) => {
+        const newMessages = [...prev, botMessage];
+        // Guardar mensajes en localStorage
+        localStorage.setItem('messages', JSON.stringify(newMessages));
+        return newMessages;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al enviar el mensaje');
       const errorMessage: Message = {
@@ -102,7 +168,12 @@ export const Chat: React.FC = () => {
       },
     ]);
     setConversationId(null);
+    setConversationState(null);
     setError('');
+    // Limpiar localStorage
+    localStorage.removeItem('conversationId');
+    localStorage.removeItem('conversationState');
+    localStorage.removeItem('messages');
   };
 
   return (
@@ -140,17 +211,15 @@ export const Chat: React.FC = () => {
               className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                  message.isUser
+                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${message.isUser
                     ? 'bg-indigo-600 text-white'
                     : 'bg-white text-gray-800 shadow-sm'
-                }`}
+                  }`}
               >
                 <p className="text-sm whitespace-pre-wrap">{message.text}</p>
                 <p
-                  className={`text-xs mt-1 ${
-                    message.isUser ? 'text-indigo-100' : 'text-gray-500'
-                  }`}
+                  className={`text-xs mt-1 ${message.isUser ? 'text-indigo-100' : 'text-gray-500'
+                    }`}
                 >
                   {message.timestamp.toLocaleTimeString('es-ES', {
                     hour: '2-digit',

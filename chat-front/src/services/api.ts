@@ -23,6 +23,14 @@ export interface ChatResponse {
   conversation_id: number;
   response: string;
   status: string;
+  state?: {
+    recipient_phone?: string | null;
+    amount?: number | null;
+    currency?: string;
+    confirmation_pending?: boolean;
+    transaction_id?: string | null;
+    messages?: Array<{ role: string; content: string }>;
+  };
 }
 
 class ApiService {

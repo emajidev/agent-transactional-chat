@@ -52,6 +52,26 @@ class ConversationUpdate(BaseModel):
     status: ConversationStatus | None = Field(
         None,
     )
+    recipient_phone: str | None = Field(
+        None,
+        description="Número de teléfono del destinatario",
+    )
+    amount: float | None = Field(
+        None,
+        description="Monto a transferir",
+    )
+    currency: str | None = Field(
+        None,
+        description="Moneda (por defecto COP)",
+    )
+    confirmation_pending: bool | None = Field(
+        None,
+        description="Si hay una confirmación pendiente",
+    )
+    transaction_id: str | None = Field(
+        None,
+        description="ID de la transacción completada",
+    )
 
     class Config:
         json_schema_extra: ClassVar[dict] = {"example": {"status": "completed", "ended_at": "2024-01-15T11:00:00"}}
@@ -94,6 +114,10 @@ class ChatResponse(BaseModel):
     conversation_id: int = Field(..., description="ID de la conversación")
     response: str = Field(..., description="Respuesta del agente")
     status: ConversationStatus = Field(..., description="Estado actual de la conversación")
+    state: dict | None = Field(
+        None,
+        description="Estado de la conversación (teléfono, monto, confirmación pendiente, etc.)",
+    )
 
     class Config:
         json_schema_extra: ClassVar[dict] = {
@@ -101,5 +125,12 @@ class ChatResponse(BaseModel):
                 "conversation_id": 1,
                 "response": "Hola, estoy aquí para ayudarte. ¿En qué puedo asistirte?",
                 "status": "active",
+                "state": {
+                    "recipient_phone": None,
+                    "amount": None,
+                    "currency": "COP",
+                    "confirmation_pending": False,
+                    "transaction_id": None,
+                },
             }
         }

@@ -121,6 +121,21 @@ nano .env  # o usa tu editor preferido
 - `HOST`: Host del servidor (por defecto: 0.0.0.0)
 - `PORT`: Puerto del servidor (por defecto: 3000)
 
+**Variables de entorno para RabbitMQ (opcionales):**
+- `RABBITMQ_HOST`: Host de RabbitMQ (por defecto: localhost)
+- `RABBITMQ_PORT`: Puerto de RabbitMQ (por defecto: 5672)
+- `RABBITMQ_USER`: Usuario de RabbitMQ (por defecto: guest)
+- `RABBITMQ_PASSWORD`: Contraseña de RabbitMQ (por defecto: guest)
+- `RABBITMQ_VHOST`: Virtual host de RabbitMQ (por defecto: /)
+- `RABBITMQ_TRANSFER_QUEUE`: Nombre de la cola para transferencias (por defecto: transfer_queue)
+
+**Variables de entorno para Redis (opcionales):**
+- `REDIS_HOST`: Host de Redis (por defecto: localhost)
+- `REDIS_PORT`: Puerto de Redis (por defecto: 6379)
+- `REDIS_PASSWORD`: Contraseña de Redis (opcional, por defecto: vacío)
+- `REDIS_DB`: Número de base de datos de Redis (por defecto: 0)
+- `REDIS_TTL`: Tiempo de vida en segundos para el caché de conversaciones (por defecto: 3600 = 1 hora)
+
 **Nota:** Una vez activado el entorno virtual, verás `(.venv)` al inicio de tu prompt en la terminal.
 
 ## Uso

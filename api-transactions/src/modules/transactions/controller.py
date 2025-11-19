@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from src.common.repositories import get_db
-from src.common.guards import verify_api_key
 from src.modules.transactions.services.transactions_service import TransactionsService
 from src.modules.transactions.dtos.transaction import (
     TransactionCreate,
@@ -35,15 +34,12 @@ router = APIRouter(prefix="/transactions", tags=["transactions"])
                 }
             }
         },
-        401: {"description": "API Key no proporcionada o inválida"},
-        403: {"description": "API Key inválida"},
         422: {"description": "Error de validación de datos"}
     }
 )
 def create_transaction(
     transaction: TransactionCreate,
-    db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
+    db: Session = Depends(get_db)
 ):
     """
     Crear una nueva transacción.
@@ -84,8 +80,7 @@ def create_transaction(
 def get_transactions(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
+    db: Session = Depends(get_db)
 ):
     """
     Obtener todas las transacciones con paginación.
@@ -118,15 +113,12 @@ def get_transactions(
                 }
             }
         },
-        401: {"description": "API Key no proporcionada o inválida"},
-        403: {"description": "API Key inválida"},
         404: {"description": "Transacción no encontrada"}
     }
 )
 def get_transaction(
     transaction_id: int,
-    db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
+    db: Session = Depends(get_db)
 ):
     """
     Obtener una transacción específica por su ID.
@@ -171,8 +163,7 @@ def get_transaction(
 def update_transaction(
     transaction_id: int,
     transaction: TransactionUpdate,
-    db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
+    db: Session = Depends(get_db)
 ):
     """
     Actualizar una transacción existente.
@@ -204,8 +195,7 @@ def update_transaction(
 )
 def delete_transaction(
     transaction_id: int,
-    db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
+    db: Session = Depends(get_db)
 ):
     """
     Eliminar una transacción.

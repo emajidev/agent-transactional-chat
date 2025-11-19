@@ -5,12 +5,12 @@ def validate_phone_number(phone: str) -> tuple[bool, str | None]:
     cleaned_phone = re.sub(r"[\s\-\(\)]", "", phone)
 
     if not cleaned_phone.isdigit():
-        return False, "Phone number must contain only digits"
+        return False, "El número de teléfono debe contener solo dígitos"
 
     if len(cleaned_phone) != 10:
         return (
             False,
-            f"Phone number must have exactly 10 digits. Received {len(cleaned_phone)} digits.",
+            f"El número de teléfono debe tener exactamente 10 dígitos. Se recibieron {len(cleaned_phone)} dígitos.",
         )
 
     return True, None
@@ -19,33 +19,36 @@ def validate_phone_number(phone: str) -> tuple[bool, str | None]:
 def extract_phone_number(text: str) -> str | None:
     pattern = r"\b\d{10}\b"
     matches = re.findall(pattern, text)
-
     if matches:
         return matches[0]
 
     cleaned = re.sub(r"[^\d]", "", text)
     if len(cleaned) == 10:
         return cleaned
+    elif len(cleaned) == 11:
+        return cleaned[-10:]  # Tomar últimos 10 dígitos
 
     return None
 
 
 def validate_amount(amount_text: str) -> tuple[bool, float | None, str | None]:
-    cleaned = re.sub(r"[\s\$\.]", "", amount_text.lower())
-    numbers = re.findall(r"\d+", cleaned)
-
+    cleaned = re.sub(r"[\s\$]", "", amount_text.lower())
+    cleaned = re.sub(r",(\d{1,2})$", r".\1", cleaned)
+    if cleaned.count(".") > 1:
+        parts = cleaned.split(".")
+        cleaned = "".join(parts[:-1]) + "." + parts[-1]
+    
+    numbers = re.findall(r"\d+\.?\d*", cleaned)
     if not numbers:
-        return False, None, "Could not find a valid amount in your message"
+        return False, None, "No se pudo encontrar un monto válido en tu mensaje"
 
     try:
         amount = float(numbers[0])
-    except ValueError:
-        return False, None, "The provided amount is not valid"
-    else:
         if amount <= 0:
-            return False, None, "Amount must be greater than 0"
-
+            return False, None, "El monto debe ser mayor a 0"
         return True, amount, None
+    except ValueError:
+        return False, None, "El monto proporcionado no es válido"
 
 
 def extract_amount(text: str) -> float | None:

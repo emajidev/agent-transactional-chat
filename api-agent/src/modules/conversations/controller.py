@@ -226,16 +226,6 @@ def chat(
     db: Session = Depends(get_db),
     current_user: UserEntity = Depends(get_current_user),
 ):
-    """
-    Send a chat message.
-
-    - **message**: Chat message (required, 1-1000 characters)
-    - **conversation_id**: Conversation ID (optional, a new one will be created if not provided)
-
-    If conversation_id is not provided, a new conversation is created with status 'active'.
-    If conversation_id is provided and the conversation exists, it is updated.
-    If the conversation was completed or abandoned, it is reactivated.
-    """
     service = ConversationsService(db, settings.OPENAI_API_KEY)
     user_id = str(current_user.id)
     return service.process_chat_message(chat_message, user_id)

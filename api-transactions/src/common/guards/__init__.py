@@ -1,4 +1,4 @@
-from src.common.guards.api_key import verify_api_key
+# Guards module - no guards currently defined
 
-__all__ = ["verify_api_key"]
+__all__ = []
 

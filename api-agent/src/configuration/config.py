@@ -18,9 +18,28 @@ class Settings(BaseSettings):
     API_KEY: str = Field(default="", description="API Key for authentication (deprecated, use JWT)")
     OPENAI_API_KEY: str = Field(default="", description="OpenAI API Key for AI agent")
     OPENAI_MODEL: str = Field(default="gpt-4o-mini", description="OpenAI model to use for AI agent")
+    OPENAI_BASE_URL: str = Field(
+        default="", description="OpenAI API base URL (optional, for proxy or compatible services)"
+    )
     JWT_SECRET_KEY: str = Field(
         default="your-secret-key-change-in-production", description="Secret key for JWT tokens"
     )
+    RABBITMQ_HOST: str = Field(default="localhost", description="RabbitMQ host")
+    RABBITMQ_PORT: int = Field(default=5672, description="RabbitMQ port")
+    RABBITMQ_USER: str = Field(default="guest", description="RabbitMQ username")
+    RABBITMQ_PASSWORD: str = Field(default="guest", description="RabbitMQ password")
+    RABBITMQ_VHOST: str = Field(default="/", description="RabbitMQ virtual host")
+    RABBITMQ_TRANSFER_QUEUE: str = Field(
+        default="transfer_queue", description="RabbitMQ queue name for transfers"
+    )
+    RABBITMQ_RESPONSE_QUEUE: str = Field(
+        default="transfer_response_queue", description="RabbitMQ queue name for transfer responses"
+    )
+    REDIS_HOST: str = Field(default="localhost", description="Redis host")
+    REDIS_PORT: int = Field(default=6379, description="Redis port")
+    REDIS_PASSWORD: str = Field(default="", description="Redis password (empty if no auth)")
+    REDIS_DB: int = Field(default=0, description="Redis database number")
+    REDIS_TTL: int = Field(default=3600, description="Redis TTL in seconds for conversation cache (default 1 hour)")
 
     class Config:
         env_file = str(Path(__file__).parent.parent.parent / ".env")
