@@ -43,23 +43,77 @@ cd api-transactions
 docker-compose up -d
 ```
 
-4. **Iniciar API Agent**
+4. **Ejecutar migraciones y crear tablas**
+
+Antes de iniciar los servicios, es necesario ejecutar las migraciones de base de datos para crear las tablas necesarias.
+
+**Opción 1: Usar el script de migraciones (Recomendado)**
+
+Desde la raíz del proyecto, puedes usar el script de migraciones:
+
+```bash
+# Ejecutar migraciones para todos los servicios
+./run_migrations.sh
+
+# Ejecutar migraciones para un servicio específico
+./run_migrations.sh api-agent
+./run_migrations.sh api-transactions
+
+# Esperar antes de ejecutar (útil si la BD tarda en estar lista)
+./run_migrations.sh all 5
+```
+
+**Opción 2: Ejecutar manualmente**
+
+**Para API Agent:**
 ```bash
 cd api-agent
-pip install -r requirements.txt
+# Activar el entorno virtual (si usas uno)
+source .venv/bin/activate  # En Linux/Mac
+# o
+.venv\Scripts\activate  # En Windows
+
+# Ejecutar migraciones
 alembic upgrade head
-uvicorn src.main:app --reload
 ```
 
-5. **Iniciar API Transactions**
+**Para API Transactions:**
 ```bash
 cd api-transactions
-pip install -r requirements.txt
+# Activar el entorno virtual (si usas uno)
+source .venv/bin/activate  # En Linux/Mac
+# o
+.venv\Scripts\activate  # En Windows
+
+# Ejecutar migraciones
 alembic upgrade head
+```
+
+**Nota:** Si encuentras errores con las migraciones (por ejemplo, versión incorrecta en la base de datos), puedes verificar el estado actual con:
+```bash
+alembic current    # Ver versión actual
+alembic history    # Ver historial de migraciones
+```
+
+Las migraciones crearán automáticamente las siguientes tablas:
+- **api-agent**: `users`, `conversations`, `messages`
+- **api-transactions**: `transactions`
+
+5. **Iniciar API Agent**
+```bash
+cd api-agent
+# Asegúrate de tener el entorno virtual activado
 uvicorn src.main:app --reload
 ```
 
-6. **Iniciar Frontend**
+6. **Iniciar API Transactions**
+```bash
+cd api-transactions
+# Asegúrate de tener el entorno virtual activado
+uvicorn src.main:app --reload
+```
+
+7. **Iniciar Frontend**
 ```bash
 cd chat-front
 npm install
@@ -75,6 +129,52 @@ npm run dev
 - ✅ Autenticación con JWT
 - ✅ Comunicación asíncrona entre servicios
 - ✅ Documentación interactiva (Swagger UI)
+
+## 🗄️ Migraciones de Base de Datos
+
+El proyecto utiliza **Alembic** para gestionar las migraciones de base de datos. Las migraciones crean automáticamente todas las tablas necesarias.
+
+### Comandos de Migración
+
+**Verificar estado actual:**
+```bash
+alembic current    # Ver versión actual aplicada
+alembic history    # Ver historial de migraciones
+```
+
+**Aplicar migraciones:**
+```bash
+alembic upgrade head    # Aplicar todas las migraciones pendientes
+```
+
+**Revertir migraciones:**
+```bash
+alembic downgrade -1    # Revertir la última migración
+alembic downgrade base  # Revertir todas las migraciones
+```
+
+**Crear nueva migración:**
+```bash
+alembic revision --autogenerate -m "Descripción de la migración"
+```
+
+### Tablas Creadas
+
+**api-agent:**
+- `users` - Usuarios del sistema
+- `conversations` - Conversaciones del chat
+- `messages` - Mensajes de las conversaciones
+
+**api-transactions:**
+- `transactions` - Transacciones financieras
+
+### Solución de Problemas
+
+Si encuentras errores como "Can't locate revision identified by 'XXX'", significa que la base de datos tiene una versión de migración que no existe en los archivos. Puedes corregirlo:
+
+1. Verificar la versión actual: `alembic current`
+2. Si la versión es incorrecta, actualizar manualmente la tabla `alembic_version` en la base de datos
+3. O usar: `alembic stamp head` para marcar la versión actual sin ejecutar migraciones
 
 ## 🛠️ Tecnologías
 
