@@ -7,7 +7,7 @@ from src.common.enums.transaction_status import TransactionStatus
 from src.common.rabbitmq_consumer import RabbitMQConsumer
 from src.common.rabbitmq_service import RabbitMQService
 from src.configuration.config import get_session
-from src.modules.transactions.dtos.transaction import TransactionCreate
+from src.modules.transactions.dtos.transaction import TransactionCreate, TransactionUpdate
 from src.modules.transactions.services.transactions_service import TransactionsService
 from src.modules.users.entities.user_entity import UserEntity
 
@@ -131,7 +131,6 @@ class TransferConsumerService:
             # Cada intento crea una nueva sesión para evitar problemas con sesiones en estado inválido
             max_retries = 3
             user = None
-            original_balance = None
             
             for attempt in range(1, max_retries + 1):
                 db = None
@@ -202,7 +201,7 @@ class TransferConsumerService:
                                 
                                 raise ValueError(error_msg)
                             
-                            # Verificar saldo suficiente
+                            # Verificar saldo suficiente (solo validación, no descontar aún)
                             user_balance = user.balance or 0.0
                             if user_balance < amount:
                                 error_msg = (
@@ -234,18 +233,6 @@ class TransferConsumerService:
                                 
                                 raise ValueError(error_msg)
                             
-                            # Descontar el saldo
-                            original_balance = user_balance
-                            user.balance = user_balance - amount
-                            db.flush()  # Flush para asegurar que el cambio se refleje antes de commit
-                            
-                            logger.info(
-                                f"Saldo descontado para usuario {user_id}: "
-                                f"Saldo anterior: ${original_balance:,.0f}, "
-                                f"Monto transferido: ${amount:,.0f}, "
-                                f"Nuevo saldo: ${user.balance:,.0f} {user_currency}"
-                            )
-                            
                         except ValueError:
                             # Re-lanzar errores de validación sin reintentar
                             raise
@@ -257,8 +244,31 @@ class TransferConsumerService:
                     # Crear el servicio de transacciones con la sesión
                     transactions_service = TransactionsService(db)
 
-                    # Guardar en la base de datos
+                    # Guardar la transacción en la base de datos con estado PENDING
                     transaction = transactions_service.create_transaction(transaction_create)
+                    
+                    # Si hay usuario, restar el balance y actualizar estado a COMPLETED
+                    if user_id and user:
+                        # Descontar el saldo cuando se complete la transferencia
+                        original_balance = user.balance or 0.0
+                        user.balance = original_balance - amount
+                        db.flush()  # Flush para asegurar que el cambio se refleje antes de commit
+                        
+                        logger.info(
+                            f"Saldo descontado para usuario {user_id}: "
+                            f"Saldo anterior: ${original_balance:,.0f}, "
+                            f"Monto transferido: ${amount:,.0f}, "
+                            f"Nuevo saldo: ${user.balance:,.0f} {user.currency or currency}"
+                        )
+                        
+                        # Actualizar el estado de la transacción a COMPLETED
+                        transaction_update = TransactionUpdate(status=TransactionStatus.COMPLETED)
+                        updated_transaction = transactions_service.update_transaction(transaction.id, transaction_update)
+                        if not updated_transaction:
+                            raise ValueError(f"No se pudo actualizar la transacción {transaction.id} a estado COMPLETED")
+                        transaction = updated_transaction
+                    
+                    # Hacer commit de todo (transacción, balance actualizado, estado COMPLETED)
                     db.commit()
                     
                     # Obtener saldo después de la transferencia
@@ -307,9 +317,10 @@ class TransferConsumerService:
                     raise validation_error
                 except Exception as db_error:
                     # Si ya descontamos el saldo, revertirlo
-                    if db and user and original_balance is not None:
+                    if db and user_id and user:
                         try:
-                            user.balance = original_balance
+                            # Recargar el usuario para obtener el balance original
+                            db.refresh(user)
                             db.rollback()
                             logger.info(f"Saldo revertido para usuario {user_id} después de error en BD")
                         except Exception as rollback_error:
@@ -322,11 +333,7 @@ class TransferConsumerService:
                     # Asegurar rollback en caso de cualquier error de BD
                     if db:
                         try:
-                            if user and original_balance is not None:
-                                # Ya se hizo rollback arriba
-                                pass
-                            else:
-                                db.rollback()
+                            db.rollback()
                         except Exception as rollback_error:
                             logger.debug(
                                 f"Error al hacer rollback (intento {attempt}): {str(rollback_error)}"
@@ -380,7 +387,6 @@ class TransferConsumerService:
                     # Limpiar la referencia a db para el siguiente intento
                     db = None
                     user = None
-                    original_balance = None
 
         except ValueError as e:
             # Errores de validación - no reintentar

@@ -53,20 +53,7 @@ class RabbitMQService:
             self._connect()
 
     def send_transfer(self, transfer_data: dict[str, Any]) -> bool:
-        """
-        Envía un mensaje de transferencia a RabbitMQ
-
-        Args:
-            transfer_data: Diccionario con los datos de la transferencia
-                - transaction_id: ID de la transacción
-                - recipient_phone: Número de teléfono del destinatario
-                - amount: Monto de la transferencia
-                - currency: Moneda (default: COP)
-                - user_id: ID del usuario que realiza la transferencia (opcional)
-
-        Returns:
-            True si el mensaje se envió exitosamente, False en caso contrario
-        """
+        print(f"Init send transfer: {transfer_data}")
         try:
             self._ensure_connection()
 

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class AgentService:
     def __init__(self, db: Session, openai_api_key: str | None = None):
-        self.agent = TransactionAgent(openai_api_key, db=db)
+        self.agent = TransactionAgent(openai_api_key)
         self.repository = ConversationRepository(db)
         self.message_repository = MessageRepository(db)
         self.redis_service = get_redis_service()
@@ -70,6 +70,7 @@ class AgentService:
         currency = getattr(conversation, "currency", "COP") if conversation else "COP"
         confirmation_pending = getattr(conversation, "confirmation_pending", False) if conversation else False
         transaction_id = getattr(conversation, "transaction_id", None) if conversation else None
+        user_id = getattr(conversation, "user_id", None) if conversation else None
         
         context = {
             "recipient_phone": recipient_phone,
@@ -77,6 +78,8 @@ class AgentService:
             "currency": currency,
             "confirmation_pending": confirmation_pending,
             "transaction_id": transaction_id,
+            "conversation_id": conversation_id,
+            "user_id": user_id,
             "messages": messages,
         }
         
@@ -89,18 +92,40 @@ class AgentService:
 
         # Guardar en caché (Redis y memoria)
         self._context_cache[conversation_id] = context
+        
+        # Guardar solo los 4 campos permitidos en Redis
         redis_key = f"conversation:{conversation_id}"
-        self.redis_service.set(redis_key, context)
+        redis_data = {
+            "recipient_phone": recipient_phone,
+            "amount": amount,
+            "conversation_id": conversation_id,
+            "user_id": user_id,
+        }
+        self.redis_service.set(redis_key, redis_data)
 
         return context
 
     def save_conversation_context(self, conversation_id: int, context: dict[str, Any]):
-        # Guardar en Redis
-        redis_key = f"conversation:{conversation_id}"
-        self.redis_service.set(redis_key, context)
-        
-        # Guardar en caché en memoria como fallback
+        # Guardar en caché en memoria como fallback (con todo el contexto)
         self._context_cache[conversation_id] = context
+        
+        # Obtener user_id del contexto o del contexto anterior en Redis
+        user_id = context.get("user_id")
+        if not user_id:
+            redis_key = f"conversation:{conversation_id}"
+            cached_context = self.redis_service.get(redis_key)
+            if cached_context and cached_context.get("user_id"):
+                user_id = cached_context.get("user_id")
+        
+        # Guardar solo los 4 campos permitidos en Redis
+        redis_key = f"conversation:{conversation_id}"
+        redis_data = {
+            "recipient_phone": context.get("recipient_phone"),
+            "amount": context.get("amount"),
+            "conversation_id": conversation_id,
+            "user_id": user_id,
+        }
+        self.redis_service.set(redis_key, redis_data)
         
         # Guardar el estado en la base de datos
         try:
