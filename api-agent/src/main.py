@@ -10,7 +10,12 @@ from src.modules.auth.controller import router as auth_router
 from src.modules.conversations.controller import router as conversations_router
 from src.modules.conversations.services.response_consumer_service import ResponseConsumerService
 
-# Metadata configuration for OpenAPI/Swagger
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
 description = """
 ## Agent API
 

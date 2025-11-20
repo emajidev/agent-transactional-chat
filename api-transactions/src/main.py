@@ -11,12 +11,15 @@ from src.common.mixins.soft_delete_mixin import setup_soft_delete_listeners
 from src.modules.transactions.controller import router
 from src.modules.transactions.services.transfer_consumer_service import TransferConsumerService
 
-# Cargar variables de entorno desde .env ANTES de importar settings
-# Esto asegura que uvicorn pueda leer las variables cuando se ejecuta directamente
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
 env_path = Path(__file__).parent.parent.parent / ".env"
 if env_path.exists():
     load_dotenv(env_path, override=True)
-    # Establecer variables de entorno para que uvicorn las lea si no están ya establecidas
     if "PORT" not in os.environ:
         port_from_env = os.getenv("PORT")
         if port_from_env:
