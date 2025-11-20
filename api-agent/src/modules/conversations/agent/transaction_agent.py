@@ -11,11 +11,9 @@ from src.common.rabbitmq_service import get_rabbitmq_service
 from src.common.redis_service import get_redis_service
 from src.modules.conversations.agent.agent_state import AgentState
 from src.modules.conversations.utils.validators import (
-    extract_amount,
-    extract_phone_number,
+
     is_transfer_related,
-    validate_amount,
-    validate_phone_number,
+
 )
 
 SPANISH_LANGUAGE_ENFORCEMENT = "Responde EXCLUSIVAMENTE en ESPAÑOL."
@@ -161,63 +159,68 @@ class TransactionAgent:
         messages = state.get("messages", [])
         last_user_message = self._get_last_user_message(messages)
         conversation_id = state.get("conversation_id")
+        user_id = state.get("user_id")
         
+        print(f"[_extract_info] last_user_message: {last_user_message}")
         if not last_user_message:
             return {}
+        
+        extraction_prompt = f"""Analiza el siguiente mensaje del usuario y extrae SOLO los datos que se solicitan.
+                                Mensaje: "{last_user_message}"
+                                INSTRUCCIONES:
+                                - Si el mensaje contiene un número de teléfono (10 dígitos, puede empezar con 0), extráelo en el campo "recipient_phone"
+                                - Si el mensaje contiene un monto de dinero (número positivo), extráelo en el campo "amount"
+                                - Si no encuentras un dato, usa null para ese campo
+                                - El teléfono debe tener exactamente 10 dígitos
+                                - El monto debe ser un número positivo
+                                Responde ÚNICAMENTE con un JSON válido en este formato:
+                                {{
+                                    "recipient_phone": "número_de_teléfono_o_null",
+                                    "amount": número_o_null
+                                }}
+                                Ejemplo si el mensaje es "04140220846 enviar 100":
+                                {{
+                                    "recipient_phone": "04140220846",
+                                    "amount": 100
+                                }}
+                                Ejemplo si el mensaje es "quiero transferir 50000":
+                                {{
+                                    "recipient_phone": null,
+                                    "amount": 50000
+                                }}
+                                Responde SOLO con el JSON, sin texto adicional."""
 
-        updates = {}
-        current_phone = state.get("recipient_phone")
-        current_amount = state.get("amount")
-        print(f"[_extract_info] current_phone: {current_phone}")
-        print(f"[_extract_info] current_amount: {current_amount}")
-        # Extraer teléfono si no lo tenemos
-        if not current_phone:
-            phone = extract_phone_number(last_user_message)
-            if phone:
-                is_valid, _ = validate_phone_number(phone)
-                if is_valid:
-                    updates["recipient_phone"] = phone
+        conversation_messages = [
+            SystemMessage(content=SPANISH_LANGUAGE_ENFORCEMENT),
+            SystemMessage(content=extraction_prompt),
+        ]
+            
+        response = self.llm.invoke(conversation_messages)
+        response_content = response.content.strip()
+        
+        # Limpiar la respuesta si tiene markdown code blocks
+        if response_content.startswith("```"):
+            # Remover markdown code blocks
+            lines = response_content.split('\n')
+            response_content = '\n'.join([line for line in lines if not line.startswith('```')])
+        
+        # Parsear JSON
+        extracted_data = json.loads(response_content)
+        print(f"[_extract_info] Datos extraídos por LLM: {extracted_data}")
+        redis_key = f"conversation:{conversation_id}"
+        
+        redis_data = {
+            "recipient_phone": extracted_data.get("recipient_phone"),
+            "amount": extracted_data.get("amount"),
+            "conversation_id": conversation_id,
+            "user_id": user_id,
+        }
+        if(extracted_data.get("recipient_phone") is not None and extracted_data.get("amount") is not None):
+            print(f"[_extract_info] Datos guardados en Redis: {redis_data}")
+            self.redis_service.set(redis_key, redis_data)
+        return extracted_data
 
-        # Extraer monto si no lo tenemos
-        if not current_amount:
-            amount = extract_amount(last_user_message)
-            if amount:
-                is_valid, validated_amount, _ = validate_amount(str(amount))
-                if is_valid:
-                    updates["amount"] = validated_amount
-
-        # Guardar en Redis teléfono, monto, conversation_id y user_id
-        if updates and conversation_id:
-            try:
-                redis_key = f"conversation:{conversation_id}"
-                existing_data = self.redis_service.get(redis_key) or {}
-                
-                # Actualizar solo con valores válidos (no None)
-                if "recipient_phone" in updates and updates["recipient_phone"] is not None:
-                    existing_data["recipient_phone"] = updates["recipient_phone"]
-                if "amount" in updates and updates["amount"] is not None:
-                    existing_data["amount"] = updates["amount"]
-                
-                # Preservar conversation_id y user_id si existen
-                if not existing_data.get("conversation_id"):
-                    existing_data["conversation_id"] = conversation_id
-                if state.get("user_id") and not existing_data.get("user_id"):
-                    existing_data["user_id"] = state.get("user_id")
-                
-                # Guardar teléfono, monto, conversation_id y user_id
-                redis_data = {
-                    "recipient_phone": existing_data.get("recipient_phone"),
-                    "amount": existing_data.get("amount"),
-                    "conversation_id": existing_data.get("conversation_id"),
-                    "user_id": existing_data.get("user_id"),
-                }
-                
-                self.redis_service.set(redis_key, redis_data)
-                print(f"[_extract_info] Datos guardados en Redis: {redis_data}")
-            except Exception as e:
-                print(f"[_extract_info] Error al guardar en Redis: {str(e)}")
-
-        return updates
+        
 
     def _after_extraction(self, state: AgentState) -> str:
         if state.get("recipient_phone") and state.get("amount"):
@@ -225,7 +228,6 @@ class TransactionAgent:
         return "continue"
 
     def _check_confirmation(self, state: AgentState) -> dict[str, Any]:
-        # Si tenemos datos pero no se ha pedido confirmación, pedirla
         if state.get("recipient_phone") and state.get("amount") and not state.get("confirmation_pending"):
             messages = state.get("messages", [])
             last_assistant_message = None
@@ -363,6 +365,8 @@ class TransactionAgent:
                 "currency": final_state.get("currency", "COP"),
                 "confirmation_pending": final_state.get("confirmation_pending", False),
                 "transaction_id": final_state.get("transaction_id"),
+                "user_id": final_state.get("user_id"),
+                "conversation_id": final_state.get("conversation_id"),
                 "messages": messages[-10:],
             },
         }

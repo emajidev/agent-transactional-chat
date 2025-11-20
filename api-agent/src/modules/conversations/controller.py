@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from src.common.repositories import get_db
 from src.configuration.config import settings
 from src.modules.auth.entities.user_entity import UserEntity
-from src.modules.auth.guards.jwt import get_current_user
+from src.modules.auth.guards.jwt import get_current_user, get_current_user_id
 from src.modules.conversations.dtos.conversation import (
     ChatMessage,
     ChatResponse,
@@ -224,8 +224,9 @@ def update_conversation(
 def chat(
     chat_message: ChatMessage,
     db: Session = Depends(get_db),
-    current_user: UserEntity = Depends(get_current_user),
+    user_id: int = Depends(get_current_user_id),
 ):
+
     service = ConversationsService(db, settings.OPENAI_API_KEY)
-    user_id = str(current_user.id)
-    return service.process_chat_message(chat_message, user_id)
+    print(f"user_id: {user_id}")
+    return service.process_chat_message(chat_message, str(user_id))

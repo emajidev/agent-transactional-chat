@@ -9,6 +9,30 @@ from src.modules.auth.services.auth_service import AuthService, verify_token
 security = HTTPBearer()
 
 
+async def get_current_user_id(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> int:
+    token = credentials.credentials
+
+    payload = verify_token(token)
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido o expirado",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user_id: int = payload.get("sub")
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido: no contiene user_id",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return user_id
+
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)
 ) -> UserEntity:

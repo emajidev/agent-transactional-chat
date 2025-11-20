@@ -150,7 +150,6 @@ class RabbitMQConsumer:
             transaction_id = message_data.get("transaction_id", "unknown")
 
             # Print cuando se recibe el mensaje
-            print(f"[RabbitMQ] 📥 Mensaje recibido en cola {self.queue_name} - {message_data}")
             logger.info(
                 f"Mensaje recibido de RabbitMQ (cola: {self.queue_name}): transaction_id={transaction_id}, "
                 f"conversation_id={message_data.get('conversation_id')}"

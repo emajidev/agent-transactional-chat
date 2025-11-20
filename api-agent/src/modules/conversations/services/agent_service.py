@@ -21,35 +21,35 @@ class AgentService:
         self._context_cache: dict[int, dict[str, Any]] = {}  # Fallback en memoria
 
     def get_conversation_context(self, conversation_id: int) -> dict[str, Any]:
-        # Intentar obtener de Redis primero
         redis_key = f"conversation:{conversation_id}"
-        cached_context = self.redis_service.get(redis_key)
-        if cached_context:
-            logger.debug(f"Contexto cargado desde Redis para conversación {conversation_id}")
-            # Actualizar caché en memoria como fallback
-            self._context_cache[conversation_id] = cached_context
+        redis_data = self.redis_service.get(redis_key)
+        
+        if conversation_id in self._context_cache:
+            cached_context = self._context_cache[conversation_id]
+            if redis_data:
+                cached_context["recipient_phone"] = redis_data.get("recipient_phone")
+                cached_context["amount"] = redis_data.get("amount")
             return cached_context
 
-        # Si está en caché en memoria, devolverlo
-        if conversation_id in self._context_cache:
-            return self._context_cache[conversation_id]
-
-        # Cargar conversación desde BD para obtener el estado
         conversation = self.repository.get_by_id(conversation_id)
         
-        # Intentar cargar mensajes desde la base de datos
+        recipient_phone = None
+        amount = None
+        if redis_data:
+            recipient_phone = redis_data.get("recipient_phone")
+            amount = redis_data.get("amount")
+            logger.debug(f"Datos cargados desde Redis para conversación {conversation_id}: phone={recipient_phone}, amount={amount}")
+        
         messages = []
         try:
             db_messages = self.message_repository.get_by_conversation_id(
                 conversation_id=conversation_id, limit=100
             )
-            # Convertir mensajes de BD al formato esperado
             messages = [
                 {"role": msg.role, "content": msg.content}
                 for msg in db_messages
             ]
         except ProgrammingError as e:
-            # Si la tabla no existe, loguear el error y continuar con mensajes vacíos
             if "does not exist" in str(e) or "relation" in str(e).lower():
                 logger.warning(
                     f"La tabla 'messages' no existe. "
@@ -57,16 +57,15 @@ class AgentService:
                     f"Error: {str(e)}"
                 )
             else:
-                # Re-lanzar si es otro tipo de error de programación
                 raise
         except Exception as e:
-            # Para otros errores, loguear y continuar con mensajes vacíos
             logger.error(f"Error al cargar mensajes desde BD: {str(e)}")
 
-        # Cargar el estado desde la conversación en BD
-        # Usar getattr con valores por defecto para manejar campos que pueden no existir
-        recipient_phone = getattr(conversation, "recipient_phone", None) if conversation else None
-        amount = getattr(conversation, "amount", None) if conversation else None
+        if not recipient_phone:
+            recipient_phone = getattr(conversation, "recipient_phone", None) if conversation else None
+        if not amount:
+            amount = getattr(conversation, "amount", None) if conversation else None
+        
         currency = getattr(conversation, "currency", "COP") if conversation else "COP"
         confirmation_pending = getattr(conversation, "confirmation_pending", False) if conversation else False
         transaction_id = getattr(conversation, "transaction_id", None) if conversation else None
@@ -90,10 +89,8 @@ class AgentService:
             f"Mensajes: {len(messages)}"
         )
 
-        # Guardar en caché (Redis y memoria)
         self._context_cache[conversation_id] = context
         
-        # Guardar teléfono, monto, conversation_id y user_id en Redis
         redis_key = f"conversation:{conversation_id}"
         redis_data = {
             "recipient_phone": recipient_phone,
@@ -106,10 +103,8 @@ class AgentService:
         return context
 
     def save_conversation_context(self, conversation_id: int, context: dict[str, Any]):
-        # Guardar en caché en memoria como fallback (con todo el contexto)
         self._context_cache[conversation_id] = context
         
-        # Guardar teléfono, monto, conversation_id y user_id en Redis
         redis_key = f"conversation:{conversation_id}"
         redis_data = {
             "recipient_phone": context.get("recipient_phone"),
@@ -119,7 +114,6 @@ class AgentService:
         }
         self.redis_service.set(redis_key, redis_data)
         
-        # Guardar el estado en la base de datos
         try:
             from src.modules.conversations.dtos.conversation import ConversationUpdate
             
@@ -139,7 +133,6 @@ class AgentService:
         self, user_message: str, conversation_id: int, _user_id: str
     ) -> dict[str, Any]:
         conversation_state = self.get_conversation_context(conversation_id)
-        # Agregar user_id y conversation_id al estado de la conversación
         conversation_state["user_id"] = _user_id
         conversation_state["conversation_id"] = conversation_id
 
