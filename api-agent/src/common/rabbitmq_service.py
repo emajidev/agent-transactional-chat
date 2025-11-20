@@ -53,7 +53,6 @@ class RabbitMQService:
             self._connect()
 
     def send_transfer(self, transfer_data: dict[str, Any]) -> bool:
-        print(f"Init send transfer: {transfer_data}")
         try:
             self._ensure_connection()
 

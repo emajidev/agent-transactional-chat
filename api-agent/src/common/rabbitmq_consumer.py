@@ -160,7 +160,6 @@ class RabbitMQConsumer:
 
             # Confirmar que el mensaje fue procesado exitosamente
             ch.basic_ack(delivery_tag=method.delivery_tag)
-            print(f"[RabbitMQ] ✅ Mensaje procesado exitosamente - transaction_id={transaction_id}")
             logger.info(f"Mensaje procesado exitosamente: transaction_id={transaction_id}")
 
         except json.JSONDecodeError as e:

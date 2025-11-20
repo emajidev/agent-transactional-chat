@@ -4,6 +4,7 @@ from src.common.resilience import retry_db_operation
 from src.modules.transactions.entities import Transaction
 from src.modules.transactions.dtos.transaction import TransactionCreate, TransactionUpdate
 from src.common.enums.transaction_status import TransactionStatus
+from src.common.enums.currency import Currency
 
 
 class TransactionRepository(BaseRepository[Transaction]):
@@ -40,6 +41,8 @@ class TransactionRepository(BaseRepository[Transaction]):
             elif isinstance(data['status'], str):
                 # Si ya es string, verificar que sea válido
                 data['status'] = data['status'].lower()
+        if 'currency' in data and isinstance(data['currency'], Currency):
+            data['currency'] = data['currency'].value
         db_transaction = Transaction(**data)
         return super().create(db_transaction)
     

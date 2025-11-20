@@ -161,7 +161,6 @@ class TransactionAgent:
         conversation_id = state.get("conversation_id")
         user_id = state.get("user_id")
         
-        print(f"[_extract_info] last_user_message: {last_user_message}")
         if not last_user_message:
             return {}
         
@@ -206,7 +205,6 @@ class TransactionAgent:
         
         # Parsear JSON
         extracted_data = json.loads(response_content)
-        print(f"[_extract_info] Datos extraídos por LLM: {extracted_data}")
         redis_key = f"conversation:{conversation_id}"
         
         redis_data = {
@@ -216,7 +214,6 @@ class TransactionAgent:
             "user_id": user_id,
         }
         if(extracted_data.get("recipient_phone") is not None and extracted_data.get("amount") is not None):
-            print(f"[_extract_info] Datos guardados en Redis: {redis_data}")
             self.redis_service.set(redis_key, redis_data)
         return extracted_data
 
@@ -303,7 +300,8 @@ class TransactionAgent:
                 "transaction_id": transaction_id,
                 "recipient_phone": recipient_phone,
                 "amount": amount,
-                "currency": state.get("currency", "COP"),
+                "conversation_id": state.get("conversation_id"),
+                "user_id": state.get("user_id"),
             }
             
             if state.get("conversation_id"):
@@ -312,8 +310,8 @@ class TransactionAgent:
                 transfer_data["user_id"] = state.get("user_id")
 
             get_rabbitmq_service().send_transfer(transfer_data)
-            
-            success_message = f"¡Transferencia exitosa! Se enviaron ${amount:,.0f} COP al {recipient_phone}. ID: {transaction_id}"
+                        # No mostrar éxito inmediatamente - el resultado real vendrá en la respuesta asíncrona
+            success_message = f"Tu solicitud de transferencia de ${amount:,.0f} COP al {recipient_phone} está siendo procesada. ID: {transaction_id}. Te notificaré cuando se complete."
             
         except Exception:
             success_message = f"Tu solicitud ha sido registrada (ID: {transaction_id}), pero hubo un problema al procesarla."

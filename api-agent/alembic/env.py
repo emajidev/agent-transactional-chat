@@ -24,8 +24,9 @@ def ensure_tables_exist():
             connection.commit()
         Base.metadata.create_all(bind=engine)
     except Exception as e:
-        print(f"Warning: Could not create tables automatically: {e}")
-        print("Continuing with migrations...")
+        logger.error(f"Error creating tables automatically: {e}")  # pyright: ignore[reportUndefinedVariable]
+        raise e
+
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

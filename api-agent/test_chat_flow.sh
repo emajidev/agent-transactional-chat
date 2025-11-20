@@ -103,3 +103,4 @@ echo "============================================================"
 echo "✅ Flujo completado"
 echo "   Conversation ID: $CONVERSATION_ID"
 
+

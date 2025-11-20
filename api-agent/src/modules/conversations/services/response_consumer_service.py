@@ -34,7 +34,6 @@ class ResponseConsumerService:
         conversation_id = message_data.get("conversation_id", "unknown")
         status = message_data.get("status", "unknown")
         
-        print(f"[ResponseConsumer] 📥 Respuesta recibida - transaction_id={transaction_id}, conversation_id={conversation_id}, status={status}")
         logger.info(
             f"Respuesta de transferencia recibida: transaction_id={transaction_id}, "
             f"conversation_id={conversation_id}, status={status}"

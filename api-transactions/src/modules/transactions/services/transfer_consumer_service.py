@@ -23,12 +23,6 @@ class TransferConsumerService:
         self.rabbitmq_service = RabbitMQService()
 
     def _validate_message(self, message_data: dict[str, Any]) -> tuple[bool, list[str]]:
-        """
-        Valida que el mensaje tenga todos los campos requeridos y con tipos correctos
-        
-        Returns:
-            Tuple[bool, list[str]]: (es_válido, lista_de_errores)
-        """
         errors = []
         
         # Validar campos requeridos
@@ -37,7 +31,7 @@ class TransferConsumerService:
             "conversation_id": str,
             "recipient_phone": str,
             "amount": (int, float),
-            "currency": str,
+            "user_id": int,
         }
         
         for field, expected_type in required_fields.items():
@@ -55,11 +49,6 @@ class TransferConsumerService:
             except (ValueError, TypeError):
                 errors.append(f"El monto '{message_data['amount']}' no es un número válido")
         
-        if "currency" in message_data and message_data["currency"] is not None:
-            currency = str(message_data["currency"]).strip().upper()
-            if len(currency) != 3:
-                errors.append(f"La moneda debe tener 3 caracteres. Recibido: '{currency}'")
-        
         if "recipient_phone" in message_data and message_data["recipient_phone"] is not None:
             phone = str(message_data["recipient_phone"]).strip()
             if len(phone) == 0 or len(phone) > 32:
@@ -75,27 +64,20 @@ class TransferConsumerService:
             if len(conv_id) == 0 or len(conv_id) > 255:
                 errors.append(f"El conversation_id debe tener entre 1 y 255 caracteres. Recibido: {len(conv_id)} caracteres")
         
+        if "user_id" in message_data and message_data["user_id"] is not None:
+            user_id = int(message_data["user_id"])
+            if user_id <= 0:
+                errors.append(f"El user_id debe ser mayor a 0. Recibido: {user_id}")
+        
         return len(errors) == 0, errors
 
     def _process_message(self, message_data: dict[str, Any]):
-        """
-        Procesa un mensaje de transferencia recibido de RabbitMQ
-
-        Args:
-            message_data: Diccionario con los datos de la transferencia:
-                - transaction_id: ID de la transacción (requerido)
-                - conversation_id: ID de la conversación (requerido)
-                - recipient_phone: Número de teléfono del destinatario (requerido)
-                - amount: Monto de la transferencia (requerido, debe ser > 0)
-                - currency: Moneda (requerido, 3 caracteres)
-        """
         transaction_id = message_data.get("transaction_id", "unknown")
         conversation_id = message_data.get("conversation_id", "unknown")
         amount = message_data.get("amount", "N/A")
-        currency = message_data.get("currency", "N/A")
+        user_id = message_data.get("user_id", "N/A")
         
         # Print cuando se inicia el procesamiento
-        print(f"[TransferConsumer] 🔄 Iniciando procesamiento - transaction_id={transaction_id}, conversation_id={conversation_id}, amount={amount} {currency}")
         logger.info(f"Iniciando procesamiento de transferencia: transaction_id={transaction_id}, conversation_id={conversation_id}, amount={amount} {currency}")
         
         db = None
@@ -113,7 +95,6 @@ class TransferConsumerService:
 
             # Preparar datos normalizados antes de crear la sesión
             amount = float(message_data["amount"])
-            currency = str(message_data["currency"]).strip().upper()
             user_id = message_data.get("user_id")
 
             # Crear la transacción DTO antes de crear la sesión
@@ -122,7 +103,6 @@ class TransferConsumerService:
                 transaction_id=str(message_data["transaction_id"]).strip(),
                 recipient_phone=str(message_data["recipient_phone"]).strip(),
                 amount=amount,
-                currency=currency,
                 status=TransactionStatus.PENDING,
                 error_message=None,
             )
@@ -179,7 +159,6 @@ class TransferConsumerService:
                                 logger.error(f"Error de validación: {error_msg}")
                                 transaction_create.status = TransactionStatus.FAILED
                                 transaction_create.error_message = error_msg
-                                # Crear la transacción con estado FAILED
                                 transactions_service = TransactionsService(db)
                                 transaction = transactions_service.create_transaction(transaction_create)
                                 db.commit()

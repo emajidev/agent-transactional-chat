@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 from src.common.enums.transaction_status import TransactionStatus
+from src.common.enums.currency import Currency
 
 
 class TransactionBase(BaseModel):
@@ -24,10 +25,8 @@ class TransactionBase(BaseModel):
         ...,
         gt=0,
     )
-    currency: str = Field(
+    currency: Currency = Field(
         ...,
-        min_length=3,
-        max_length=3,
     )
     status: TransactionStatus = Field(
         ...,

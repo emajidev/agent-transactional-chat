@@ -228,5 +228,4 @@ def chat(
 ):
 
     service = ConversationsService(db, settings.OPENAI_API_KEY)
-    print(f"user_id: {user_id}")
     return service.process_chat_message(chat_message, str(user_id))

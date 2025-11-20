@@ -17,3 +17,4 @@ class UserEntity(BaseEntity):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}', balance={self.balance} {self.currency})>"
 
 
+
